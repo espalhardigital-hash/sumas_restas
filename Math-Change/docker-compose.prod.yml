@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  backend_api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sumas-backend
+    restart: always
+    environment:
+      # Database - PostgreSQL External
+      - DATABASE_URL=${DATABASE_URL}
+      # JWT Secret
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      # S3/MinIO External Configuration - ALWAYS EXTERNAL
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      # Security & CORS
+      - ENABLE_SECURITY_HEADERS=${ENABLE_SECURITY_HEADERS:-true}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://sumas.n8nprueba.shop}
+    networks:
+      - default
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_proxy"
+      - "traefik.http.routers.sumas-api.rule=Host(`sumas.n8nprueba.shop`) && PathPrefix(`/api`, `/docs`, `/redoc`, `/openapi.json`)"
+      - "traefik.http.routers.sumas-api.entrypoints=websecure"
+      - "traefik.http.routers.sumas-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.sumas-api.priority=100"
+      # Strip /api prefix so backend receives /register instead of /api/register
+      - "traefik.http.middlewares.sumas-strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.routers.sumas-api.middlewares=sumas-strip-api"
+      - "traefik.http.services.sumas-api.loadbalancer.server.port=8000"
+
+  frontend_app:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://sumas.n8nprueba.shop/api}
+    container_name: sumas-frontend
+    restart: always
+    depends_on:
+      - backend_api
+    networks:
+      - default
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_proxy"
+      - "traefik.http.routers.sumas-web.rule=Host(`sumas.n8nprueba.shop`)"
+      - "traefik.http.routers.sumas-web.entrypoints=websecure"
+      - "traefik.http.routers.sumas-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.sumas-web.priority=1"
+      - "traefik.http.services.sumas-web.loadbalancer.server.port=80"
+
+networks:
+  traefik_proxy:
+    external: true

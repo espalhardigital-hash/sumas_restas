@@ -1,0 +1,29 @@
+
+# Environment Variables
+.env
+.env.prod
+.env.*.local
+!.env.example
+
+# Dependencies
+node_modules/
+venv/
+env/
+
+# Build
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
