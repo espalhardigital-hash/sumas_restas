@@ -5,13 +5,23 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: always
-    # Eliminamos depends_on ya que db y minio son externos
-    volumes:
-      - ./backend:/app
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
-    env_file:
-      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+    networks:
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.rule=Host(`${DOMINIO:-sumas.espalhar.shop}`) && PathPrefix(`/api`, `/docs`, `/redoc`, `/openapi.json`)"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.entrypoints=websecure"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.${NOMBRE_APP:-sumas}-stripprefix.stripprefix.prefixes=/api"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.middlewares=${NOMBRE_APP:-sumas}-stripprefix"
 
   # ===== FRONTEND (React + Nginx) =====
   frontend:
@@ -19,11 +29,16 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+        - VITE_API_URL=${VITE_API_URL:-https://sumas.espalhar.shop/api}
     restart: always
-    ports:
-      - "${FRONTEND_PORT:-3000}:80"
-    depends_on:
-      - backend
+    networks:
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.rule=Host(`${DOMINIO:-sumas.espalhar.shop}`)"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.entrypoints=websecure"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.tls.certresolver=myresolver"
 
-# No se requieren volúmenes locales para DB o MinIO ya que son externos
+networks:
+  traefik_proxy:
+    external: true
