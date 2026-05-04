@@ -15,6 +15,7 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
     networks:
       - traefik_proxy
+      - internal_services # Permite comunicarse con el contenedor base_postgres_general
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.rule=Host(`${DOMINIO:-sumas.espalhar.shop}`) && PathPrefix(`/api`, `/docs`, `/redoc`, `/openapi.json`)"
@@ -41,4 +42,6 @@ services:
 
 networks:
   traefik_proxy:
+    external: true
+  internal_services:
     external: true
