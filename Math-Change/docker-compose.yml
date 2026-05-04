@@ -1,62 +1,11 @@
 services:
-  # ===== BASE DE DATOS PostgreSQL =====
-  db:
-    image: postgres:15-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: math_change
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d math_change"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # ===== MINIO (Object Storage S3-compatible) =====
-  minio:
-    image: minio/minio:latest
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - miniodata:/data
-
-  # Crea el bucket automáticamente al iniciar
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      sleep 5;
-      mc alias set local http://minio:9000 minioadmin minioadmin123;
-      mc mb local/math-avatars --ignore-existing;
-      mc anonymous set download local/math-avatars;
-      echo 'Bucket math-avatars listo!';
-      exit 0;
-      "
-
   # ===== BACKEND API (FastAPI) =====
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: always
-    depends_on:
-      db:
-        condition: service_healthy
-      minio:
-        condition: service_started
+    # Eliminamos depends_on ya que db y minio son externos
     volumes:
       - ./backend:/app
     ports:
@@ -77,6 +26,4 @@ services:
     depends_on:
       - backend
 
-volumes:
-  pgdata:
-  miniodata:
+# No se requieren volúmenes locales para DB o MinIO ya que son externos
