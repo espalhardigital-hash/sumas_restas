@@ -79,10 +79,15 @@ def read_root():
 @app.post("/auth/register", response_model=Token)
 async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     """Register a new user and return JWT token."""
-    user = await create_user(db, user_data.username, user_data.email, user_data.password)
-    
-    access_token = create_access_token(data={"sub": user.id})
-    return Token(access_token=access_token)
+    try:
+        user = await create_user(db, user_data.username, user_data.email, user_data.password)
+        access_token = create_access_token(data={"sub": user.id})
+        return Token(access_token=access_token)
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno en el servidor: {str(e)}")
 
 @app.post("/auth/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
