@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException, Body, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 import os
@@ -14,7 +15,7 @@ import boto3
 import io
 from PIL import Image, ImageOps
 
-from .schemas import User as UserSchema, UserCreate, UserLogin, ScoreRecord, Token, UserRegister, CategoryLevelUpdate
+from .schemas import User as UserSchema, UserCreate, UserLogin, ScoreRecord, Token, UserRegister, CategoryLevelUpdate, CategoryProgress
 from .db.session import get_db
 from .models.sql_models import User, Score
 from .auth import (
@@ -129,6 +130,74 @@ async def get_all_users(
 @app.get("/users/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+@app.get("/users/me/progress", response_model=List[CategoryProgress])
+async def get_user_progress(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    query = select(
+        Score.category,
+        func.count(Score.id).label('total_games'),
+        func.sum(Score.score).label('total_score'),
+        func.sum(Score.correct_count).label('total_correct'),
+        func.sum(Score.error_count).label('total_errors'),
+        func.sum(Score.avg_time).label('total_time_seconds')
+    ).where(Score.user_id == current_user["id"]).group_by(Score.category)
+    
+    result = await db.execute(query)
+    rows = result.all()
+    
+    settings = current_user.get("settings", {})
+    unlocked_levels = settings.get("unlockedLevels", {})
+    
+    progress_list = []
+    for row in rows:
+        cat = row.category or "mixed"
+        total_q = (row.total_correct or 0) + (row.total_errors or 0)
+        acc = (row.total_correct / total_q * 100) if total_q > 0 else 0
+        avg_time = (row.total_time_seconds / row.total_games) if row.total_games > 0 else 0
+        
+        progress_list.append({
+            "category": cat,
+            "unlocked_level": unlocked_levels.get(cat, 0),
+            "total_games": row.total_games or 0,
+            "total_score": row.total_score or 0,
+            "total_correct": row.total_correct or 0,
+            "total_errors": row.total_errors or 0,
+            "total_time_seconds": row.total_time_seconds or 0,
+            "accuracy_rate": round(acc, 2),
+            "avg_response_time": round(avg_time, 2)
+        })
+    return progress_list
+
+@app.patch("/users/me/progress/level")
+async def update_user_level(
+    level_update: CategoryLevelUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    result = await db.execute(select(User).where(User.id == current_user["id"]))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    settings = user.settings or {}
+    unlocked_levels = settings.get("unlockedLevels", {})
+    
+    current_level = unlocked_levels.get(level_update.category, 0)
+    
+    if level_update.new_level > current_level:
+        unlocked_levels[level_update.category] = level_update.new_level
+        settings["unlockedLevels"] = unlocked_levels
+        
+        from sqlalchemy.orm.attributes import flag_modified
+        user.settings = settings
+        flag_modified(user, "settings")
+        await db.commit()
+    
+    return {"message": "Nivel actualizado", "unlockedLevels": unlocked_levels}
 
 @app.post("/users")
 async def save_user(
@@ -394,10 +463,33 @@ async def upload_avatar(
             ExtraArgs={'ContentType': content_type}
         )
         
-        base_url = S3_ENDPOINT_URL.rstrip('/')
-        url = f"{base_url}/{S3_BUCKET_NAME}/{filename}"
+        # Devolver una URL que pase por nuestro propio API
+        # Traefik interceptará /api y lo enviará aquí
+        url = f"/api/avatars/{filename}"
         return {"success": True, "url": url}
         
     except Exception as e:
         print(f"S3 Error: {e}")
         raise HTTPException(status_code=500, detail=f"Error subiendo imagen: {str(e)}")
+
+@app.get("/avatars/{filename}")
+async def get_avatar(filename: str):
+    """Proxy para servir las imágenes de MinIO sin exponer el bucket a internet"""
+    if not all([S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT_URL, S3_BUCKET_NAME]):
+        raise HTTPException(status_code=503, detail="Configuración S3 incompleta.")
+    
+    try:
+        s3 = boto3.client('s3',
+                          endpoint_url=S3_ENDPOINT_URL,
+                          aws_access_key_id=S3_ACCESS_KEY,
+                          aws_secret_access_key=S3_SECRET_KEY,
+                          region_name=S3_REGION)
+        
+        response = s3.get_object(Bucket=S3_BUCKET_NAME, Key=filename)
+        return StreamingResponse(response['Body'], media_type="image/webp")
+        
+    except s3.exceptions.NoSuchKey:
+        raise HTTPException(status_code=404, detail="Avatar no encontrado")
+    except Exception as e:
+        print(f"Error fetching avatar {filename}: {e}")
+        raise HTTPException(status_code=500, detail="Error obteniendo imagen")
