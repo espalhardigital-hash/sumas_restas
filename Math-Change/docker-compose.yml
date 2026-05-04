@@ -20,7 +20,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.rule=Host(`${DOMINIO:-sumas.espalhar.shop}`) && PathPrefix(`/api`, `/docs`, `/redoc`, `/openapi.json`)"
       - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.entrypoints=websecure"
-      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.tls.certresolver=myresolver"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.tls.certresolver=letsencrypt"
       - "traefik.http.middlewares.${NOMBRE_APP:-sumas}-stripprefix.stripprefix.prefixes=/api"
       - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.middlewares=${NOMBRE_APP:-sumas}-stripprefix"
 
@@ -38,7 +38,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.rule=Host(`${DOMINIO:-sumas.espalhar.shop}`)"
       - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.entrypoints=websecure"
-      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.tls.certresolver=myresolver"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.tls.certresolver=letsencrypt"
 
 networks:
   traefik_proxy:
