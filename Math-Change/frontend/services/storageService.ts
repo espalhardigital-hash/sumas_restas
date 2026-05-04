@@ -3,10 +3,10 @@ import { getIdToken } from './authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// --- FIREBASE TOKEN MANAGEMENT ---
-// Deprecated: We now obtain token directly from Firebase SDK per request to ensure freshness
+// --- JWT TOKEN MANAGEMENT ---
+// Token is obtained from authService (localStorage-based JWT)
 
-// HELPER with Firebase Auth
+// HELPER: Authenticated API request
 async function apiRequest<T>(endpoint: string, method: string = 'GET', body?: any): Promise<T> {
   // Always get a fresh token from the SDK
   const token = await getIdToken();

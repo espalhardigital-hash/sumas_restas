@@ -59,7 +59,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  password: string; // Legacy field - not used with Firebase Auth
+  password: string; // Password hash stored in backend
   role: UserRole;
   status: UserStatus;
   avatar?: string; // Base64 string

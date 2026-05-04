@@ -89,7 +89,7 @@ const ProfileScreen: React.FC<Props> = ({ user, onUpdateUser, onBack }) => {
         }
       }
 
-      // 1. Sync with Firebase Auth (Critical Data)
+      // 1. Update auth data via backend API
       if (formData.email !== user.email) {
         const res = await updateUserEmail(formData.email);
         if (!res.success) {

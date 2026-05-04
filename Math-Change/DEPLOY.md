@@ -1,58 +1,61 @@
-# Guía de Despliegue en VPS (Math-Change)
+# Guía de Despliegue - Math-Change (Sumas y Restas)
 
-Esta guía detalla los pasos para desplegar la aplicación en un servidor VPS con Docker, Portainer y Traefik.
+## Arquitectura
 
-## Prerrequisitos en VPS
-1. **Docker y Docker Compose** instaldos.
-2. **Red externa** llamada `traefik_proxy` creada:
-   ```bash
-   docker network create traefik_proxy
-   ```
-3. **Traefik** corriendo y conectado a esa red.
+```
+PostgreSQL (base_postgres_general) ← Backend (FastAPI) ← Frontend (Nginx/React)
+MinIO (contenedor propio)          ←
+```
+
+## Prerrequisitos en la VM
+1. **Docker y Docker Compose** instalados.
+2. **PostgreSQL** corriendo en contenedor `base_postgres_general` con la base de datos `sumas_restas` creada.
+3. **Red Docker** compartida entre los contenedores (ej: `traefik_proxy`).
 
 ## Pasos de Despliegue
 
-### 1. Preparar Archivos
-Sube los siguientes archivos y carpetas a tu VPS (puedes usar `scp`, git o Portainer):
-- `/backend` (carpeta completa)
-- `/frontend` (carpeta completa)
-- `docker-compose.prod.yml`
-- `.env.prod.example` (renómbralo a `.env`)
+### 1. Clonar/Subir el proyecto
+```bash
+git clone https://github.com/espalhardigital-hash/sumas_restas.git
+cd sumas_restas/Math-Change
+```
 
 ### 2. Configurar Variables de Entorno
-Crea un archivo `.env` basado en el ejemplo y edítalo:
+Editar el archivo `.env`:
 ```bash
-cp .env.prod.example .env
+cp .env.example .env
 nano .env
 ```
+
 **Variables Clave:**
-- `DOMINIO`: El dominio base donde se alojará la app (ej: `math.tudominio.com`).
-- `NOMBRE_APP`: Identificador único para los contenedores (ej: `math-app`).
-- `SUPABASE_...`: Tus credenciales de producción de Supabase.
+- `DATABASE_URL`: Cadena de conexión a PostgreSQL (ej: `postgresql+asyncpg://sumas_user:PASSWORD@base_postgres_general:5432/sumas_restas`)
+- `SECRET_KEY`: Clave secreta para JWT (cambiar en producción)
+- `S3_*`: Credenciales de tu MinIO
+- `VITE_API_URL`: URL pública del backend
+- `ALLOWED_ORIGINS`: Dominios permitidos por CORS
 
-### 3. Iniciar Contenedores
-Ejecuta el siguiente comando para construir e iniciar los servicios:
-
+### 3. Construir e Iniciar
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
+```
+
+### 4. Crear las tablas (primera vez)
+```bash
+docker compose exec backend python setup_db.py
+```
+
+### 5. (Opcional) Cargar datos de prueba
+```bash
+docker compose exec backend python seed_data.py
 ```
 
 ## Verificación
-1. **Frontend**: Accede a `https://tu-dominio.com`
-   - Deberías ver la pantalla de Login.
-2. **Backend API**: Accede a `https://tu-dominio.com/api/`
-   - Deberías ver el mensaje de bienvenida `{"message": "Math-Change Backend API"}`.
-3. **Documentación API**: Accede a `https://tu-dominio.com/docs`
-   - Deberías ver la interfaz Swagger UI de FastAPI.
+1. **Frontend**: `http://<IP_VM>:3000` → Pantalla de Login
+2. **Backend API**: `http://<IP_VM>:8000/` → Mensaje de bienvenida
+3. **Swagger Docs**: `http://<IP_VM>:8000/docs` → Documentación interactiva
 
-## Solución de Problemas (Troubleshooting)
+## Solución de Problemas
 
-- **Error 404 en /api**: Verifica que el middleware `stripprefix` esté funcionando y que los labels en `docker-compose.prod.yml` sean correctos.
-- **Error de Conexión en Frontend**: Asegúrate de que `VITE_API_URL` en el `.env` apunte a `https://tu-dominio.com/api` (con `/api` al final) y que hayas reconstruido el contenedor (`--build`) después de cambiarlo, ya que Vite "quema" las variables en tiempo de build.
-- **SSL no válido**: Verifica los logs de Traefik para asegurar que Let's Encrypt pudo generar el certificado.
-
----
-**Nota sobre Routing**:
-La configuración usa "Single Domain".
-- Frontend: `tudominio.com/*`
-- Backend: `tudominio.com/api/*` (Traefik elimina `/api` antes de enviar la petición al backend)
+- **Error de Conexión DB**: Verificar que el contenedor `base_postgres_general` está en la misma red Docker que el backend.
+- **Error CORS**: Verificar `ALLOWED_ORIGINS` en `.env`.
+- **Frontend no conecta al backend**: Verificar `VITE_API_URL` y reconstruir con `--build`.

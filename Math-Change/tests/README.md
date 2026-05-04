@@ -9,10 +9,9 @@ Esta carpeta contiene todos los tests del proyecto Math-Change.
 | Archivo | Descripción |
 |---------|-------------|
 | `test_s3_connection.py` | Prueba conexión y CRUD con bucket S3/MinIO |
-| `test_db_connection.py` | Prueba conexión directa a PostgreSQL/Supabase |
-| `test_crud_flow.py` | Prueba operaciones CRUD en tabla `users` vía Supabase API |
-| `test_api_integration.py` | Prueba integración completa Frontend-Backend (legacy) |
-| `frontend_test_notes.md` | Notas y observaciones de testing del frontend |
+| `test_db_connection.py` | Prueba conexión a PostgreSQL via SQLAlchemy |
+| `test_crud_flow.py` | Prueba operaciones CRUD en tablas `users` y `scores` |
+| `frontend_test_notes.md` | Notas y metodología de testing |
 
 ---
 
@@ -20,133 +19,71 @@ Esta carpeta contiene todos los tests del proyecto Math-Change.
 
 ### Prerrequisitos
 
-Asegúrate de que las variables de entorno estén configuradas en `.env`:
-- `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_ENDPOINT_URL`, `S3_BUCKET_NAME`
-
-### Ejecutar con Docker (Recomendado)
-
-```powershell
-# Desde la raíz del proyecto
-cd Math-Change
-
-# Ejecutar test específico
-docker compose run --rm backend python tests/test_s3_connection.py
-docker compose run --rm backend python tests/test_db_connection.py
-docker compose run --rm backend python tests/test_crud_flow.py
+Los contenedores Docker deben estar corriendo:
+```bash
+docker compose up -d
 ```
 
-### Ejecutar Localmente (Requiere Python)
+### Ejecutar Tests
 
-```powershell
-# Instalar dependencias
-pip install boto3 python-dotenv supabase psycopg2-binary requests
+```bash
+# Desde la raíz del proyecto (Math-Change/)
 
-# Ejecutar desde la raíz del proyecto
-python tests/test_s3_connection.py
-python tests/test_db_connection.py
-python tests/test_crud_flow.py
+# Test de conexión a la base de datos
+docker compose exec backend python tests/test_db_connection.py
+
+# Test CRUD completo (users + scores)
+docker compose exec backend python tests/test_crud_flow.py
+
+# Test de conexión S3/MinIO
+docker compose exec backend python tests/test_s3_connection.py
 ```
 
 ---
 
 ## 📋 Descripción Detallada
 
-### 1. `test_s3_connection.py` - S3/MinIO Bucket Test
+### 1. `test_db_connection.py` - Database Connection Test
 
-**Finalidad**: Verificar la conexión y operaciones con el bucket S3/MinIO para subida de avatares.
+**Finalidad**: Verificar la conexión a PostgreSQL usando SQLAlchemy async.
+
+**Tests incluidos**:
+- ✅ Conexión a PostgreSQL via `DATABASE_URL`
+- ✅ Ejecución de query `SELECT version()`
+- ✅ Listado de tablas existentes
+
+### 2. `test_crud_flow.py` - CRUD Flow Test
+
+**Finalidad**: Probar operaciones CRUD completas contra PostgreSQL.
+
+**Tests incluidos**:
+- ✅ **CREATE** - Insertar usuario de prueba con password hash
+- ✅ **READ** - Leer usuario por email
+- ✅ **UPDATE** - Actualizar `unlocked_level`
+- ✅ **DELETE** - Eliminar usuario (cleanup)
+
+### 3. `test_s3_connection.py` - S3/MinIO Bucket Test
+
+**Finalidad**: Verificar la conexión y operaciones con el bucket MinIO.
 
 **Tests incluidos**:
 - ✅ Conexión al servidor S3
-- ✅ Verificación de que el bucket existe
-- ✅ **CREATE** - Subir archivo de prueba
-- ✅ **READ** - Leer archivo subido
-- ✅ **LIST** - Listar objetos en bucket
-- ✅ **DELETE** - Eliminar archivo de prueba
-
-**Ejemplo de ejecución**:
-```powershell
-docker compose run --rm backend python tests/test_s3_connection.py
-```
-
-**Resultado esperado**:
-```
-============================================================
-📊 RESUMEN DE RESULTADOS
-============================================================
-  Conexión: ✅ PASS
-  Bucket Existe: ✅ PASS
-  CREATE: ✅ PASS
-  READ: ✅ PASS
-  LIST: ✅ PASS
-  DELETE: ✅ PASS
-
-  Total: 6/6 tests pasados
-✅ TODOS LOS TESTS PASARON - Bucket configurado correctamente!
-```
+- ✅ Verificación de bucket
+- ✅ **CREATE** - Subir archivo
+- ✅ **READ** - Leer archivo
+- ✅ **LIST** - Listar objetos
+- ✅ **DELETE** - Eliminar archivo
 
 ---
-
-### 2. `test_db_connection.py` - Database Connection Test
-
-**Finalidad**: Verificar conexión directa a PostgreSQL (Supabase) usando psycopg2.
-
-**Tests incluidos**:
-- Conexión directa (puerto 5432)
-- Conexión via pooler (puerto 6543)
-
-**Variables requeridas**:
-- `DB_PASSWORD`
-
-**Ejemplo de ejecución**:
-```powershell
-docker compose run --rm backend python tests/test_db_connection.py
-```
-
----
-
-### 3. `test_crud_flow.py` - Supabase CRUD Test
-
-**Finalidad**: Probar operaciones CRUD completas en la tabla `users` usando la API de Supabase.
-
-**Tests incluidos**:
-- ✅ **CREATE** - Insertar usuario de prueba
-- ✅ **READ** - Leer usuario por email
-- ✅ **UPDATE** - Actualizar campo `unlockedLevel`
-- ✅ **DELETE** - Eliminar usuario de prueba (cleanup)
-
-**Variables requeridas**:
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-**Ejemplo de ejecución**:
-```powershell
-docker compose run --rm backend python tests/test_crud_flow.py
-```
-
----
-
-
 
 ## 🔧 Solución de Problemas
 
-### Error: "Variables faltantes"
-Verifica que tu archivo `.env` tenga todas las variables requeridas configuradas.
+### Error: "DATABASE_URL not set"
+Verifica que el archivo `.env` existe y tiene `DATABASE_URL` configurado.
 
 ### Error: "Connection refused"
-1. Verifica que Docker esté corriendo
+1. Verifica que Docker esté corriendo: `docker compose ps`
 2. Reconstruye las imágenes: `docker compose build`
 
-### Error: "NoSuchBucket"
-El bucket S3 no existe. Verifica `S3_BUCKET_NAME` en `.env`.
-
----
-
-## ✅ Estado de Tests
-
-| Test | Última Ejecución | Estado |
-|------|------------------|--------|
-| S3 Connection | 2025-12-17 | ✅ PASS (6/6) |
-| DB Connection | - | Pendiente |
-| CRUD Flow | - | Pendiente |
-| API Integration | - | Legacy/Revisar |
+### Error: "Bucket not found"
+El contenedor `minio-init` debería crear el bucket automáticamente. Si no, accede a http://localhost:9001 y créalo manualmente.

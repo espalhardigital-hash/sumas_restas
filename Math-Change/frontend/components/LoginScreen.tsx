@@ -146,17 +146,8 @@ const LoginScreen: React.FC<Props> = ({ onLoginSuccess, onGuestPlay }) => {
   const handleResendVerification = async () => {
     setIsLoading(true);
     try {
-      // In a real app we might need the user object, but specialized handling is needed if user is not logged in.
-      // However, after registration or failed login, we might not have the user session active.
-      // firebaseAuthService.sendEmailVerification() normally works on CURRENT user.
-      // If user is not logged in, we can't send it easily without re-auth.
-      // But typically we show this screen right after registration when user IS logged in (before we sign them out? No, we sign them out).
-      // Wait, registerWithEmail signs them out. So sendEmailVerification won't work if they are signed out.
-
-      // FIX: The user needs to be signed in to send verification email. 
-      // If they are on this screen from Login (unverified), they are briefly signed in then signed out?
-      // Actually loginWithEmail signs them out if unverified.
-      // So ensuring we can resend requires the user to be signed in.
+      // Email verification is handled via the backend.
+      // The user needs to log in again to trigger a new verification email.
 
       setError('Por favor intenta iniciar sesión de nuevo para recibir el correo.');
       setIsLoading(false);

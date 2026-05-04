@@ -1,49 +1,65 @@
+"""
+Check Schema Script - Math-Change
+Verifica que las tablas existen y muestra su estructura.
 
-import os
-from dotenv import load_dotenv
-from supabase import create_client
+Uso:
+  docker compose exec backend python check_schema.py
+"""
 
-load_dotenv()
+import asyncio
+from sqlalchemy import text
+from app.db.session import engine
 
-url = os.environ.get("SUPABASE_URL")
-key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
-if not url or not key:
-    print("Missing Supabase credentials")
-    exit(1)
+async def check_schema():
+    print("=" * 50)
+    print("Math-Change - Schema Check")
+    print("=" * 50)
 
-supabase = create_client(url, key)
+    try:
+        async with engine.connect() as conn:
+            # Check tables exist
+            result = await conn.execute(text("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name;
+            """))
+            tables = result.fetchall()
 
-try:
-    # Fetch 1 record (or empty) to check structure if possible, or just list columns?
-    # Supabase doesn't easily list columns via client, but we can try inserting dummy and see error, or select.
-    # Let's try selecting.
-    res = supabase.table("scores").select("*").limit(1).execute()
-    print("Success:", res.data)
-    if res.data:
-        print("Keys:", res.data[0].keys())
-    else:
-        print("Table is empty but query worked.")
-        
-        # Try inserting a dummy with camelCase keys to test
-        dummy = {
-            "id": "test_schema_check",
-            "user": "schema_bot",
-            "score": 100,
-            "correctCount": 10,
-            "errorCount": 0,
-            "avgTime": 1.5,
-            "date": "2024-01-01",
-            "category": "test",
-            "difficulty": "test"
-        }
-        try:
-            res_ins = supabase.table("scores").insert(dummy).execute()
-            print("Insert CamelCase Success")
-            # Cleanup
-            supabase.table("scores").delete().eq("id", "test_schema_check").execute()
-        except Exception as e:
-            print(f"Insert CamelCase Failed: {e}")
-            
-except Exception as e:
-    print(f"Error: {e}")
+            if not tables:
+                print("❌ No tables found! Run setup_db.py first.")
+                return
+
+            print(f"\n✅ Found {len(tables)} table(s):")
+            for table in tables:
+                table_name = table[0]
+                print(f"\n--- Table: {table_name} ---")
+
+                # Get columns
+                cols = await conn.execute(text(f"""
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns
+                    WHERE table_name = '{table_name}'
+                    ORDER BY ordinal_position;
+                """))
+
+                for col in cols:
+                    nullable = "NULL" if col[2] == "YES" else "NOT NULL"
+                    default = f" DEFAULT {col[3]}" if col[3] else ""
+                    print(f"  {col[0]:20s} {col[1]:20s} {nullable}{default}")
+
+                # Count rows
+                count = await conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                row_count = count.scalar()
+                print(f"  → {row_count} rows")
+
+        await engine.dispose()
+        print("\n✅ Schema check complete!")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+
+if __name__ == "__main__":
+    asyncio.run(check_schema())

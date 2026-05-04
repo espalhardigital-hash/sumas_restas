@@ -1,20 +1,29 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Math Challenge
 
-# Run and deploy your AI Studio app
+Juego educativo de aritmética con dificultad progresiva y sistema de puntuación.
 
-This contains everything you need to run your app locally.
+## Stack
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ZOhsemOt8BeurJXzNa4Z7fOmUSvKx317
+- **Frontend**: React 19 + TypeScript + Vite
+- **Backend**: FastAPI (Python 3.10) + SQLAlchemy async
+- **Base de Datos**: PostgreSQL 15
+- **Storage**: MinIO (S3-compatible) para avatares
+- **Auth**: JWT (bcrypt + python-jose)
 
-## Run Locally
+## Run Locally (Docker)
 
-**Prerequisites:**  Node.js
+```bash
+# Iniciar todos los servicios (PostgreSQL + MinIO + Backend + Frontend)
+docker compose up -d --build
 
+# Crear las tablas en la base de datos
+docker compose exec backend python setup_db.py
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# (Opcional) Cargar datos de prueba
+docker compose exec backend python seed_data.py
+```
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **Swagger Docs**: http://localhost:8000/docs
+- **MinIO Console**: http://localhost:9001 (minioadmin / minioadmin123)

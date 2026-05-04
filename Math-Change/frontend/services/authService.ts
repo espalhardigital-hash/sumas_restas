@@ -1,6 +1,6 @@
 /**
- * Auth Service - Backend-based authentication (No Firebase)
- * Uses JWT tokens from our own backend
+ * Auth Service - Backend-based JWT authentication
+ * Uses JWT tokens from our own backend (PostgreSQL)
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
