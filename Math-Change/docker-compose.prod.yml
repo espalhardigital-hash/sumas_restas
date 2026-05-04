@@ -1,30 +1,5 @@
 services:
-  # Base de Datos PostgreSQL (Asume que existe el contenedor base_postgres_general)
-  # Si deseas un contenedor dedicado, descomenta las líneas de abajo.
-  # db:
-  #   image: postgres:15-alpine
-  #   restart: always
-  #   environment:
-  #     POSTGRES_USER: ${DB_USER:-postgres}
-  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
-  #     POSTGRES_DB: ${DB_NAME:-math_change}
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
-
-  # Object Storage local (MinIO)
-  minio:
-    image: minio/minio:latest
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
-    volumes:
-      - miniodata:/data
-    networks:
-      - traefik_proxy
-
-  # Backend API
+  # Backend API (FastAPI)
   backend:
     build:
       context: ./backend
@@ -42,31 +17,28 @@ services:
       - traefik_proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.${NOMBRE_APP:-math}-api.rule=Host(`${DOMINIO}`) && PathPrefix(`/api`, `/docs`, `/redoc`, `/openapi.json`)"
-      - "traefik.http.routers.${NOMBRE_APP:-math}-api.entrypoints=websecure"
-      - "traefik.http.routers.${NOMBRE_APP:-math}-api.tls.certresolver=myresolver"
-      - "traefik.http.middlewares.${NOMBRE_APP:-math}-stripprefix.stripprefix.prefixes=/api"
-      - "traefik.http.routers.${NOMBRE_APP:-math}-api.middlewares=${NOMBRE_APP:-math}-stripprefix"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.rule=Host(`${DOMINIO:-sumas.espalhar.shop}`) && PathPrefix(`/api`, `/docs`, `/redoc`, `/openapi.json`)"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.entrypoints=websecure"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.tls.certresolver=myresolver"
+      - "traefik.http.middlewares.${NOMBRE_APP:-sumas}-stripprefix.stripprefix.prefixes=/api"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-api.middlewares=${NOMBRE_APP:-sumas}-stripprefix"
 
-  # Frontend Web
+  # Frontend Web (React + Nginx)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL}
+        - VITE_API_URL=${VITE_API_URL:-https://sumas.espalhar.shop/api}
     restart: always
     networks:
       - traefik_proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.${NOMBRE_APP:-math}-web.rule=Host(`${DOMINIO}`)"
-      - "traefik.http.routers.${NOMBRE_APP:-math}-web.entrypoints=websecure"
-      - "traefik.http.routers.${NOMBRE_APP:-math}-web.tls.certresolver=myresolver"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.rule=Host(`${DOMINIO:-sumas.espalhar.shop}`)"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.entrypoints=websecure"
+      - "traefik.http.routers.${NOMBRE_APP:-sumas}-web.tls.certresolver=myresolver"
 
 networks:
   traefik_proxy:
     external: true
-
-volumes:
-  miniodata:
