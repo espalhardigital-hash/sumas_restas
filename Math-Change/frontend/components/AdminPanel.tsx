@@ -4,57 +4,34 @@ import { User, UserRole } from '../types';
 import { getAllUsers, saveUser, deleteUser, getStorageUsage, getAllScores, getUserDetailedAnalytics, adminCreateUser, adminChangePassword, getAvatarUrl } from '../services/storageService';
 import {
   ArrowLeft, Users, Shield, Activity, Database, Search,
-  Edit, Trash2, UserX, UserCheck, Plus, X, Key, Check, BarChart2, Calendar, Target, Trophy, Clock, Zap
+  Edit, Trash2, UserX, UserCheck, Plus, X, Key, Check, Calendar, Clock
 } from 'lucide-react';
 
 interface Props {
   onBack: () => void;
 }
 
-// --- SIMPLE SVG LINE CHART COMPONENT ---
-const SimpleLineChart = ({ data }: { data: { score: number; date: string }[] }) => {
-  if (!data || data.length < 2) return <div className="text-gray-500 text-xs text-center py-10">Insuficientes datos para graficar</div>;
+// Helper to format dates as "Jueves, 5 Abril 2026" (No "de", capitalized)
+const formatFriendlyDate = (dateStr: string, includeTime: boolean = true) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    ...(includeTime && { hour: '2-digit', minute: '2-digit' })
+  };
+  
+  const formatted = includeTime 
+    ? d.toLocaleString('es-ES', options) 
+    : d.toLocaleDateString('es-ES', options);
 
-  const height = 150;
-  const width = 400;
-  const padding = 20;
-
-  const maxScore = 100; // Always 100%
-  const minScore = 0;
-
-  const points = data.map((d, i) => {
-    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-    const y = height - padding - (d.score / maxScore) * (height - padding * 2);
-    return `${x},${y}`;
-  }).join(' ');
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[400px]">
-        {/* Background Lines */}
-        <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#334155" strokeDasharray="4" />
-        <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#334155" />
-        <text x={padding - 5} y={padding + 5} fill="#64748b" fontSize="10" textAnchor="end">100</text>
-        <text x={padding - 5} y={height - padding} fill="#64748b" fontSize="10" textAnchor="end">0</text>
-
-        {/* The Line */}
-        <polyline fill="none" stroke="#60a5fa" strokeWidth="2" points={points} />
-
-        {/* Dots */}
-        {data.map((d, i) => {
-          const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-          const y = height - padding - (d.score / maxScore) * (height - padding * 2);
-          return (
-            <g key={i} className="group">
-              <circle cx={x} cy={y} r="3" fill="#3b82f6" className="group-hover:r-5 transition-all" />
-              <title>{`${d.date}: ${d.score}pts`}</title>
-            </g>
-          )
-        })}
-      </svg>
-      <p className="text-center text-xs text-gray-500 mt-1">Evolución de Puntuación (Últimas Partidas)</p>
-    </div>
-  );
+  return formatted
+    .replace(/ de /g, ' ')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 const AdminPanel: React.FC<Props> = ({ onBack }) => {
@@ -311,7 +288,7 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
                   <td className="p-4 hidden sm:table-cell">
                     <div className="flex flex-col">
                       <span className={`text-xs font-bold ${user.role === 'ADMIN' ? 'text-red-400' : 'text-blue-400'}`}>{user.role}</span>
-                      <span className="text-xs text-gray-500">Reg: {user.createdAt ? new Date(user.createdAt).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).replace(/ de /g, ' ') : 'Desconocido'}</span>
+                      <span className="text-xs text-gray-500">Reg: {formatFriendlyDate(user.createdAt, false) || 'Desconocido'}</span>
                     </div>
                   </td>
                   <td className="p-4">
@@ -443,8 +420,8 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
                   <tbody className="divide-y divide-white/5">
                     {sortedHistory.map((record: any) => (
                       <tr key={record.id} className="hover:bg-white/5">
-                        <td className="p-3 text-gray-300 whitespace-nowrap capitalize">
-                          {new Date(record.date).toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/ de /g, ' ')}
+                        <td className="p-3 text-gray-300 whitespace-nowrap">
+                          {formatFriendlyDate(record.date)}
                         </td>
                         <td className="p-3 font-medium text-white capitalize">
                           {record.category === 'mixed_add_sub' ? 'Suma/Resta' :
