@@ -311,7 +311,7 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
                   <td className="p-4 hidden sm:table-cell">
                     <div className="flex flex-col">
                       <span className={`text-xs font-bold ${user.role === 'ADMIN' ? 'text-red-400' : 'text-blue-400'}`}>{user.role}</span>
-                      <span className="text-xs text-gray-500">Reg: {new Date(user.createdAt).toLocaleDateString()}</span>
+                      <span className="text-xs text-gray-500">Reg: {user.createdAt ? new Date(user.createdAt).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Desconocido'}</span>
                     </div>
                   </td>
                   <td className="p-4">
@@ -443,8 +443,8 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
                   <tbody className="divide-y divide-white/5">
                     {sortedHistory.map((record: any) => (
                       <tr key={record.id} className="hover:bg-white/5">
-                        <td className="p-3 text-gray-300 whitespace-nowrap">
-                          {new Date(record.date).toLocaleString()}
+                        <td className="p-3 text-gray-300 whitespace-nowrap capitalize">
+                          {new Date(record.date).toLocaleString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="p-3 font-medium text-white capitalize">
                           {record.category === 'mixed_add_sub' ? 'Suma/Resta' :
