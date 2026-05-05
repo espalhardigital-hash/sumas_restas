@@ -56,6 +56,14 @@ const WelcomeScreen: React.FC<Props> = ({ user, onStart, onLeaderboard, onStudy,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, difficulty, selectedCategory, progress]);
 
+  const getAvatarUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    // Replace /api with the VITE_API_URL if it exists (local dev handling)
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    return url.startsWith('/api') ? `${baseUrl}${url.replace('/api', '')}` : `${baseUrl}${url}`;
+  };
+
   const handleStart = () => {
     const finalName = username.trim() || "Usuario";
     onStart(finalName, selectedCategory, difficulty);
@@ -129,7 +137,7 @@ const WelcomeScreen: React.FC<Props> = ({ user, onStart, onLeaderboard, onStudy,
         {user?.avatar && !imgError ? (
           <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-blue-400 relative z-10 shadow-lg">
             <img
-              src={user.avatar}
+              src={getAvatarUrl(user.avatar)}
               alt="User"
               className="w-full h-full object-cover"
               onError={() => setImgError(true)}

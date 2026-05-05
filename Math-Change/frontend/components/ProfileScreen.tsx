@@ -1,7 +1,6 @@
-
 import React, { useState, useRef } from 'react';
-import { User, Difficulty } from '../types';
-import { saveUser, uploadAvatar } from '../services/storageService';
+import { User, Difficulty, GameCategory } from '../types';
+import { saveUser, uploadAvatar, getAvatarUrl } from '../services/storageService';
 import { ArrowLeft, Camera, Save, Settings, User as UserIcon, Clock, Trash2 } from 'lucide-react';
 
 // Placeholder functions - email/password update via backend not implemented yet
@@ -179,7 +178,7 @@ const ProfileScreen: React.FC<Props> = ({ user, onUpdateUser, onBack }) => {
           <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/10 group-hover:border-blue-500 transition-all bg-slate-800 flex items-center justify-center">
               {previewAvatar || formData.avatar ? (
-                <img src={previewAvatar || formData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                <img src={previewAvatar || getAvatarUrl(formData.avatar)} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 <UserIcon size={48} className="text-gray-500" />
               )}

@@ -344,7 +344,9 @@ async def get_scores(
 ):
     query = select(Score)
     if user:
-        query = query.where(Score.user_id == user)
+        query = query.join(User, Score.user_id == User.id).where(
+            (Score.user_id == user) | (User.username == user)
+        )
     
     result = await db.execute(query)
     scores = result.scalars().all()

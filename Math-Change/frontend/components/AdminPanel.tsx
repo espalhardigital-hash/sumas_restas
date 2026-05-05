@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { getAllUsers, saveUser, deleteUser, getStorageUsage, getAllScores, getUserDetailedAnalytics, adminCreateUser, adminChangePassword } from '../services/storageService';
+import { getAllUsers, saveUser, deleteUser, getStorageUsage, getAllScores, getUserDetailedAnalytics, adminCreateUser, adminChangePassword, getAvatarUrl } from '../services/storageService';
 import {
   ArrowLeft, Users, Shield, Activity, Database, Search,
   Edit, Trash2, UserX, UserCheck, Plus, X, Key, Check, BarChart2, Calendar, Target, Trophy, Clock, Zap
@@ -280,8 +280,8 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
                 <tr key={user.id} className="hover:bg-white/5 transition-colors">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border border-white/10 shrink-0">
-                        {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : <span className="font-bold text-gray-400">{user.username[0]}</span>}
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20 flex items-center justify-center bg-gray-700">
+                        {user.avatar ? <img src={getAvatarUrl(user.avatar)} className="w-full h-full object-cover" /> : <span className="font-bold text-gray-400">{user.username[0]}</span>}
                       </div>
                       <div>
                         <div className="font-bold text-white">{user.username}</div>
@@ -388,8 +388,8 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
           <div className="bg-[#1e293b] border border-white/10 p-0 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="bg-white/5 p-6 flex items-center gap-4 border-b border-white/10">
-              <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border-2 border-white/20">
-                {statsUser.avatar ? <img src={statsUser.avatar} className="w-full h-full object-cover" /> : <span className="text-2xl font-bold text-gray-400">{statsUser.username[0]}</span>}
+              <div className="w-16 h-16 rounded-full overflow-hidden border border-white/20 flex items-center justify-center bg-gray-700 mr-4">
+                {statsUser.avatar ? <img src={getAvatarUrl(statsUser.avatar)} className="w-full h-full object-cover" /> : <span className="text-2xl font-bold text-gray-400">{statsUser.username[0]}</span>}
               </div>
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-white">{statsUser.username}</h3>

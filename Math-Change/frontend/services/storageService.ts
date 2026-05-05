@@ -3,8 +3,14 @@ import { getIdToken } from './authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// --- JWT TOKEN MANAGEMENT ---
-// Token is obtained from authService (localStorage-based JWT)
+// --- FIREBASE TOKEN MANAGEMENT ---
+// Deprecated: We now obtain token directly from Firebase SDK per request to ensure freshness
+
+export const getAvatarUrl = (url: string | undefined | null) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return url.startsWith('/api') ? `${API_URL}${url.replace('/api', '')}` : `${API_URL}${url}`;
+};
 
 // HELPER: Authenticated API request
 async function apiRequest<T>(endpoint: string, method: string = 'GET', body?: any): Promise<T> {
