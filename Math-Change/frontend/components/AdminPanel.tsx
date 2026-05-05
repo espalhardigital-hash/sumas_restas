@@ -72,6 +72,7 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
   const [statsUser, setStatsUser] = useState<User | null>(null);
   const [userStatsData, setUserStatsData] = useState<any>(null);
   const [statsTab, setStatsTab] = useState<'category' | 'difficulty'>('category');
+  const [sortConfig, setSortConfig] = useState<{key: 'date' | 'score', direction: 'asc' | 'desc'}>({key: 'date', direction: 'desc'});
 
   // Global Stats
   const [stats, setStats] = useState({
@@ -193,6 +194,24 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
     const newStatus = user.status === 'ACTIVE' ? 'BANNED' : 'ACTIVE';
     await saveUser({ ...user, status: newStatus });
     loadData();
+  };
+
+  const sortedHistory = React.useMemo(() => {
+    if (!userStatsData?.history) return [];
+    return [...userStatsData.history].sort((a, b) => {
+      if (sortConfig.key === 'date') {
+        return sortConfig.direction === 'asc' ? new Date(a.date).getTime() - new Date(b.date).getTime() : new Date(b.date).getTime() - new Date(a.date).getTime();
+      } else {
+        return sortConfig.direction === 'asc' ? a.score - b.score : b.score - a.score;
+      }
+    });
+  }, [userStatsData?.history, sortConfig]);
+
+  const toggleSort = (key: 'date' | 'score') => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+    }));
   };
 
   const filteredUsers = users.filter(u =>
@@ -402,76 +421,57 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+              <h4 className="text-sm font-bold text-gray-400 uppercase mb-4 flex items-center gap-2">
+                <Activity size={16} /> Historial de Partidas
+              </h4>
 
-              {/* Performance Chart */}
-              <div className="mb-8 bg-black/20 p-4 rounded-xl border border-white/5">
-                <h4 className="text-sm font-bold text-gray-400 uppercase mb-4 flex items-center gap-2">
-                  <Activity size={16} /> Desempeño General
-                </h4>
-                <SimpleLineChart data={userStatsData.history} />
-              </div>
-
-              {/* Stats Tabs */}
-              <div className="flex space-x-4 border-b border-white/10 mb-4">
-                <button
-                  onClick={() => setStatsTab('category')}
-                  className={`pb-2 text-sm font-bold transition-colors ${statsTab === 'category' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  Por Categoría
-                </button>
-                <button
-                  onClick={() => setStatsTab('difficulty')}
-                  className={`pb-2 text-sm font-bold transition-colors ${statsTab === 'difficulty' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  Por Nivel/Dificultad
-                </button>
-              </div>
-
-              {/* Stats Table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead className="text-xs text-gray-400 uppercase bg-white/5">
                     <tr>
-                      <th className="p-3">{statsTab === 'category' ? 'Categoría' : 'Dificultad'}</th>
-                      <th className="p-3 text-center">Partidas</th>
-                      <th className="p-3 text-center">Promedio</th>
-                      <th className="p-3 text-center">Precisión</th>
-                      <th className="p-3 text-center flex items-center justify-center gap-1"><Clock size={12} /> T. Pregunta</th>
+                      <th className="p-3 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('date')}>
+                        Fecha {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="p-3">Categoría</th>
+                      <th className="p-3 text-center">Nivel</th>
+                      <th className="p-3 text-center cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('score')}>
+                        Puntaje {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="p-3 text-center">Errores</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {(statsTab === 'category' ? userStatsData.byCategory : userStatsData.byDifficulty).map((item: any) => (
-                      <tr key={item.key} className="hover:bg-white/5">
+                    {sortedHistory.map((record: any) => (
+                      <tr key={record.id} className="hover:bg-white/5">
+                        <td className="p-3 text-gray-300 whitespace-nowrap">
+                          {new Date(record.date).toLocaleString()}
+                        </td>
                         <td className="p-3 font-medium text-white capitalize">
-                          {item.key === 'mixed_add_sub' ? 'Suma/Resta' :
-                            item.key === 'mixed_mult_add' ? 'Mult/Op' :
-                              item.key === 'all_mixed' ? 'Experto' :
-                                item.key === 'easy' ? 'Nivel 1' :
-                                  item.key === 'easy_medium' ? 'Nivel 2' :
-                                    item.key === 'medium' ? 'Nivel 3' :
-                                      item.key === 'medium_hard' ? 'Nivel 4' :
-                                        item.key === 'hard' ? 'Nivel 5' :
-                                          item.key}
+                          {record.category === 'mixed_add_sub' ? 'Suma/Resta' :
+                            record.category === 'mixed_mult_add' ? 'Mult/Op' :
+                              record.category === 'all_mixed' ? 'Experto' :
+                                record.category}
                         </td>
-                        <td className="p-3 text-center text-gray-300">{item.games}</td>
-                        <td className="p-3 text-center font-bold text-white">{item.avgScore}%</td>
+                        <td className="p-3 text-center text-blue-300">
+                          {record.difficulty === 'easy' ? 'Nivel 1' :
+                            record.difficulty === 'easy_medium' ? 'Nivel 2' :
+                              record.difficulty === 'medium' ? 'Nivel 3' :
+                                record.difficulty === 'medium_hard' ? 'Nivel 4' :
+                                  record.difficulty === 'hard' ? 'Nivel 5' :
+                                    record.difficulty}
+                        </td>
                         <td className="p-3 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className={`${item.accuracy >= 80 ? 'text-green-400' : item.accuracy >= 60 ? 'text-yellow-400' : 'text-red-400'} font-bold`}>
-                              {item.accuracy}%
-                            </span>
-                            <span className="text-[10px] text-gray-500">
-                              {item.errors} err
-                            </span>
-                          </div>
+                          <span className={`${record.score >= 80 ? 'text-green-400' : record.score >= 60 ? 'text-yellow-400' : 'text-red-400'} font-bold`}>
+                            {record.score}%
+                          </span>
                         </td>
-                        <td className="p-3 text-center text-blue-300 font-mono">
-                          {item.avgTimePerQuestion}s
+                        <td className="p-3 text-center text-red-400 font-bold">
+                          {record.errorCount}
                         </td>
                       </tr>
                     ))}
-                    {(statsTab === 'category' ? userStatsData.byCategory : userStatsData.byDifficulty).length === 0 && (
-                      <tr><td colSpan={5} className="p-4 text-center text-gray-500">Sin datos disponibles.</td></tr>
+                    {sortedHistory.length === 0 && (
+                      <tr><td colSpan={5} className="p-4 text-center text-gray-500">Sin historial de partidas.</td></tr>
                     )}
                   </tbody>
                 </table>

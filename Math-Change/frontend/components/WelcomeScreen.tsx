@@ -56,6 +56,10 @@ const WelcomeScreen: React.FC<Props> = ({ user, onStart, onLeaderboard, onStudy,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, difficulty, selectedCategory, progress]);
 
+  useEffect(() => {
+    setImgError(false);
+  }, [user?.avatar]);
+
   const getAvatarUrl = (url: string) => {
     if (!url) return '';
     if (url.startsWith('http')) return url;

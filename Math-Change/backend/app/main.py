@@ -126,8 +126,8 @@ async def get_all_users(
             "status": u.status,
             "avatar": u.avatar,
             "unlocked_level": u.unlocked_level,
-            "created_at": u.created_at.isoformat() if u.created_at else None,
-            "last_login": u.last_login.isoformat() if u.last_login else None,
+            "createdAt": u.created_at.isoformat() if u.created_at else None,
+            "lastLogin": u.last_login.isoformat() if u.last_login else None,
         }
         for u in users
     ]
@@ -248,7 +248,9 @@ async def save_user(
         "role": user.role,
         "status": user.status,
         "avatar": user.avatar,
-        "unlocked_level": user.unlocked_level
+        "unlocked_level": user.unlocked_level,
+        "createdAt": user.created_at.isoformat() if user.created_at else None,
+        "lastLogin": user.last_login.isoformat() if user.last_login else None
     }
 
 @app.delete("/users/{user_id}")
@@ -307,6 +309,7 @@ async def admin_create_user(
         "email": user.email,
         "role": user.role,
         "status": user.status,
+        "createdAt": user.created_at.isoformat() if user.created_at else None,
         "message": "Usuario creado correctamente"
     }
 
@@ -356,9 +359,9 @@ async def get_scores(
             "id": s.id,
             "user_id": s.user_id,
             "score": s.score,
-            "correct_count": s.correct_count,
-            "error_count": s.error_count,
-            "avg_time": s.avg_time,
+            "correctCount": s.correct_count,
+            "errorCount": s.error_count,
+            "avgTime": s.avg_time,
             "date": s.date.isoformat() if s.date else None,
             "category": s.category,
             "difficulty": s.difficulty
