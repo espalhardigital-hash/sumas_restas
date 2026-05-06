@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { getAllUsers, saveUser, deleteUser, getStorageUsage, getAllScores, getUserDetailedAnalytics, adminCreateUser, adminChangePassword, getAvatarUrl } from '../services/storageService';
+import { getAllUsers, saveUser, deleteUser, getStorageUsage, getAllScores, getUserDetailedAnalytics, adminCreateUser, adminChangePassword, getAvatarUrl, deleteScoreById } from '../services/storageService';
 import {
   ArrowLeft, Users, Shield, Activity, Database, Search,
-  Edit, Trash2, UserX, UserCheck, Plus, X, Key, Check, Calendar, Clock
+  Edit, Trash2, UserX, UserCheck, Plus, X, Key, Check, Calendar, Clock, BarChart2
 } from 'lucide-react';
 
 interface Props {
@@ -41,6 +41,7 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
   // Modals State
   const [showUserModal, setShowUserModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showAllScoresModal, setShowAllScoresModal] = useState(false);
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -48,6 +49,7 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
   const [newPassword, setNewPassword] = useState('');
   const [statsUser, setStatsUser] = useState<User | null>(null);
   const [userStatsData, setUserStatsData] = useState<any>(null);
+  const [allScores, setAllScores] = useState<any[]>([]);
   const [statsTab, setStatsTab] = useState<'category' | 'difficulty'>('category');
   const [sortConfig, setSortConfig] = useState<{key: 'date' | 'score', direction: 'asc' | 'desc'}>({key: 'date', direction: 'desc'});
 
@@ -74,15 +76,16 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
 
   const loadData = async () => {
     const allUsers = await getAllUsers();
-    const allScores = await getAllScores();
+    const scores = await getAllScores();
 
     setUsers(allUsers);
+    setAllScores(scores);
 
     // Calculate Global Stats
     setStats({
       totalUsers: allUsers.length,
       activeUsers: allUsers.filter(u => u.status === 'ACTIVE').length,
-      totalGamesPlayed: allScores.length,
+      totalGamesPlayed: scores.length,
       storage: getStorageUsage()
     });
   };
@@ -107,9 +110,13 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
 
   const handleViewStats = async (user: User) => {
     setStatsUser(user);
-    const data = await getUserDetailedAnalytics(user.username);
-    setUserStatsData(data);
+    // Reset data before fetching
+    setUserStatsData(null);
     setShowStatsModal(true);
+    
+    const data = await getUserDetailedAnalytics(user.username);
+    // If data is null, we'll handle it in the modal UI
+    setUserStatsData(data || { history: [], totalGames: 0 });
   };
 
   const handleDelete = async (id: string) => {
@@ -177,7 +184,9 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
     if (!userStatsData?.history) return [];
     return [...userStatsData.history].sort((a, b) => {
       if (sortConfig.key === 'date') {
-        return sortConfig.direction === 'asc' ? new Date(a.date).getTime() - new Date(b.date).getTime() : new Date(b.date).getTime() - new Date(a.date).getTime();
+        const dateA = a.rawDate ? new Date(a.rawDate).getTime() : 0;
+        const dateB = b.rawDate ? new Date(b.rawDate).getTime() : 0;
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
       } else {
         return sortConfig.direction === 'asc' ? a.score - b.score : b.score - a.score;
       }
@@ -223,9 +232,12 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
           <div><p className="text-gray-400 text-xs uppercase">Usuarios</p><p className="text-2xl font-bold text-white">{stats.totalUsers}</p></div>
           <Users className="text-blue-400 opacity-50" />
         </div>
-        <div className="bg-black/30 border border-white/10 p-4 rounded-xl flex items-center justify-between">
+        <div 
+          onClick={() => setShowAllScoresModal(true)}
+          className="bg-black/30 border border-white/10 p-4 rounded-xl flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors group"
+        >
           <div><p className="text-gray-400 text-xs uppercase">Partidas</p><p className="text-2xl font-bold text-green-400">{stats.totalGamesPlayed}</p></div>
-          <Activity className="text-green-400 opacity-50" />
+          <Activity className="text-green-400 group-hover:scale-110 transition-transform" />
         </div>
         <div className="bg-black/30 border border-white/10 p-4 rounded-xl flex items-center justify-between">
           <div><p className="text-gray-400 text-xs uppercase">Activos</p><p className="text-2xl font-bold text-yellow-400">{stats.activeUsers}</p></div>
@@ -379,7 +391,7 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
       )}
 
       {/* MODAL 2: User Statistics (ENHANCED) */}
-      {showStatsModal && statsUser && userStatsData && (
+      {showStatsModal && statsUser && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
           <div className="bg-[#1e293b] border border-white/10 p-0 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
@@ -398,44 +410,113 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-              <h4 className="text-sm font-bold text-gray-400 uppercase mb-4 flex items-center gap-2">
-                <Activity size={16} /> Historial de Partidas
-              </h4>
+              {!userStatsData ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                  <Activity className="animate-spin mb-4" size={32} />
+                  <p>Cargando estadísticas...</p>
+                </div>
+              ) : (
+                <>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase mb-4 flex items-center gap-2">
+                    <Activity size={16} /> Historial de Partidas
+                  </h4>
 
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="text-xs text-gray-400 uppercase bg-white/5">
+                        <tr>
+                          <th className="p-3 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('date')}>
+                            Fecha {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th className="p-3">Categoría</th>
+                          <th className="p-3 text-center">Nivel</th>
+                          <th className="p-3 text-center cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('score')}>
+                            Puntaje {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th className="p-3 text-center">Errores</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {sortedHistory.map((record: any) => (
+                          <tr key={record.id} className="hover:bg-white/5">
+                            <td className="p-3 text-gray-300 whitespace-nowrap">
+                              {formatFriendlyDate(record.rawDate || record.date)}
+                            </td>
+                            <td className="p-3 font-medium text-white capitalize">
+                              {record.category === 'mixed_add_sub' ? 'Suma/Resta' :
+                                record.category === 'mixed_mult_add' ? 'Mult/Op' :
+                                  record.category === 'all_mixed' ? 'Experto' :
+                                    record.category}
+                            </td>
+                            <td className="p-3 text-center text-blue-300">
+                              {record.difficulty === 'easy' ? 'Nivel 1' :
+                                record.difficulty === 'easy_medium' ? 'Nivel 2' :
+                                  record.difficulty === 'medium' ? 'Nivel 3' :
+                                    record.difficulty === 'medium_hard' ? 'Nivel 4' :
+                                      record.difficulty === 'hard' ? 'Nivel 5' :
+                                        record.difficulty}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className={`${record.score >= 80 ? 'text-green-400' : record.score >= 60 ? 'text-yellow-400' : 'text-red-400'} font-bold`}>
+                                {record.score}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-center text-red-400 font-bold">
+                              {record.errorCount}
+                            </td>
+                          </tr>
+                        ))}
+                        {sortedHistory.length === 0 && (
+                          <tr><td colSpan={5} className="p-4 text-center text-gray-500">Sin historial de partidas.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: All Scores (General Scores) */}
+      {showAllScoresModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+          <div className="bg-[#1e293b] border border-white/10 p-0 rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white/5 p-6 flex justify-between items-center border-b border-white/10">
+              <div>
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Activity className="text-green-400" /> Puntuaciones Generales
+                </h3>
+                <p className="text-gray-400 text-sm">Todas las partidas registradas en el sistema</p>
+              </div>
+              <button onClick={() => setShowAllScoresModal(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                  <thead className="text-xs text-gray-400 uppercase bg-white/5">
+                  <thead className="text-xs text-gray-400 uppercase bg-white/5 sticky top-0 backdrop-blur-md">
                     <tr>
-                      <th className="p-3 cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('date')}>
-                        Fecha {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                      </th>
+                      <th className="p-3">Fecha</th>
+                      <th className="p-3">Usuario</th>
                       <th className="p-3">Categoría</th>
-                      <th className="p-3 text-center">Nivel</th>
-                      <th className="p-3 text-center cursor-pointer hover:text-white transition-colors" onClick={() => toggleSort('score')}>
-                        Puntaje {sortConfig.key === 'score' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                      </th>
+                      <th className="p-3 text-center">Puntaje</th>
                       <th className="p-3 text-center">Errores</th>
+                      <th className="p-3 text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {sortedHistory.map((record: any) => (
+                    {[...allScores].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((record: any) => (
                       <tr key={record.id} className="hover:bg-white/5">
                         <td className="p-3 text-gray-300 whitespace-nowrap">
                           {formatFriendlyDate(record.date)}
                         </td>
-                        <td className="p-3 font-medium text-white capitalize">
-                          {record.category === 'mixed_add_sub' ? 'Suma/Resta' :
-                            record.category === 'mixed_mult_add' ? 'Mult/Op' :
-                              record.category === 'all_mixed' ? 'Experto' :
-                                record.category}
+                        <td className="p-3 font-bold text-blue-400">
+                          {record.user}
                         </td>
-                        <td className="p-3 text-center text-blue-300">
-                          {record.difficulty === 'easy' ? 'Nivel 1' :
-                            record.difficulty === 'easy_medium' ? 'Nivel 2' :
-                              record.difficulty === 'medium' ? 'Nivel 3' :
-                                record.difficulty === 'medium_hard' ? 'Nivel 4' :
-                                  record.difficulty === 'hard' ? 'Nivel 5' :
-                                    record.difficulty}
+                        <td className="p-3 text-white capitalize">
+                          {record.category?.replace(/_/g, ' ') || 'General'}
                         </td>
                         <td className="p-3 text-center">
                           <span className={`${record.score >= 80 ? 'text-green-400' : record.score >= 60 ? 'text-yellow-400' : 'text-red-400'} font-bold`}>
@@ -445,10 +526,23 @@ const AdminPanel: React.FC<Props> = ({ onBack }) => {
                         <td className="p-3 text-center text-red-400 font-bold">
                           {record.errorCount}
                         </td>
+                        <td className="p-3 text-center">
+                          <button 
+                            onClick={async () => {
+                              if (confirm('¿Eliminar esta puntuación?')) {
+                                await deleteScoreById(record.id);
+                                loadData();
+                              }
+                            }}
+                            className="p-1 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
-                    {sortedHistory.length === 0 && (
-                      <tr><td colSpan={5} className="p-4 text-center text-gray-500">Sin historial de partidas.</td></tr>
+                    {allScores.length === 0 && (
+                      <tr><td colSpan={6} className="p-8 text-center text-gray-500">No hay partidas registradas.</td></tr>
                     )}
                   </tbody>
                 </table>

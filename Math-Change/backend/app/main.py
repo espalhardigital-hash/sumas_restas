@@ -346,7 +346,12 @@ async def get_scores(
     current_user: dict = Depends(get_current_user)
 ):
     query = select(Score)
-    if user:
+    
+    # Security: If not admin, can only see own scores
+    if current_user["role"] != "ADMIN":
+        query = query.where(Score.user_id == current_user["id"])
+    elif user:
+        # Admin can filter by user ID or username
         query = query.join(User, Score.user_id == User.id).where(
             (Score.user_id == user) | (User.username == user)
         )

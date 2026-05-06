@@ -114,9 +114,11 @@ export const getUserDetailedAnalytics = async (username: string) => {
   // 1. History for Graph
   const history = userScores.map(s => ({
     date: new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    rawDate: s.date,
     score: s.score,
     category: s.category || 'N/A',
-    difficulty: s.difficulty || 'N/A'
+    difficulty: s.difficulty || 'N/A',
+    errorCount: s.errorCount
   }));
 
   // 2. Breakdown by Category
